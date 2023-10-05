@@ -1,49 +1,15 @@
--- Connect to the PostgreSQL server and create the database
-\connect postgres;
-CREATE DATABASE your_database_name;
-
--- Connect to the newly created database
-\c your_database_name;
-
--- Create a schema
-CREATE SCHEMA your_schema_name;
-
--- Create tables
-CREATE TABLE your_schema_name.your_table1 (
-    column1 datatype1,
-    column2 datatype2,
-    -- Define your table columns here
+-- Create table
+CREATE TABLE employees (
+    employee_id serial PRIMARY KEY,
+    first_name VARCHAR (50),
+    last_name VARCHAR (50),
+    salary numeric
 );
 
-CREATE TABLE your_schema_name.your_table2 (
-    column1 datatype1,
-    column2 datatype2,
-    -- Define your table columns here
-);
+-- Insert data
+INSERT INTO employees (first_name, last_name, salary)
+VALUES
+    ('John', 'Doe', 50000),
+    ('Jane', 'Smith', 60000),
+    ('Bob', 'Johnson', 55000);
 
--- Create indexes
-CREATE INDEX idx_your_table1_column1 ON your_schema_name.your_table1 (column1);
-CREATE INDEX idx_your_table2_column1 ON your_schema_name.your_table2 (column1);
-
--- Add constraints
-ALTER TABLE your_schema_name.your_table1
-    ADD CONSTRAINT pk_your_table1 PRIMARY KEY (column1);
-
-ALTER TABLE your_schema_name.your_table2
-    ADD CONSTRAINT fk_your_table2_column1 FOREIGN KEY (column1) REFERENCES your_schema_name.your_table1(column1);
-
--- Load sample data
-COPY your_schema_name.your_table1 FROM '/path/to/your_data_file1.csv' CSV HEADER;
-COPY your_schema_name.your_table2 FROM '/path/to/your_data_file2.csv' CSV HEADER;
-
--- Create roles with read-only and read-write access
-CREATE ROLE readonly_role;
-CREATE ROLE readwrite_role;
-
--- Grant read-only access to the schema and tables
-GRANT USAGE ON SCHEMA your_schema_name TO readonly_role;
-GRANT SELECT ON ALL TABLES IN SCHEMA your_schema_name TO readonly_role;
-
--- Grant read-write access to the schema and tables
-GRANT USAGE ON SCHEMA your_schema_name TO readwrite_role;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA your_schema_name TO readwrite_role;
