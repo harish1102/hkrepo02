@@ -1,15 +1,31 @@
--- Create table
-CREATE TABLE employees (
-    employee_id serial PRIMARY KEY,
-    first_name VARCHAR (50),
-    last_name VARCHAR (50),
-    salary numeric
-);
+-- Create a PL/pgSQL block
+DO $$ 
+BEGIN
+    -- Declare variables to store the row counts
+    DECLARE
+        schema1_count INT;
+        schema2_count INT;
 
--- Insert data
-INSERT INTO employees (first_name, last_name, salary)
-VALUES
-    ('John', 'Doe', 50000),
-    ('Jane', 'Smith', 60000),
-    ('Bob', 'Johnson', 55000);
+    -- Get the row count for the first schema
+    SELECT COUNT(*) INTO schema1_count
+    FROM schema1.your_table;
 
+    -- Get the row count for the second schema
+    SELECT COUNT(*) INTO schema2_count
+    FROM schema2.your_table;
+
+    -- Check the condition and perform actions accordingly
+    IF schema1_count > schema2_count THEN
+        -- Do something when schema1 has more rows
+        RAISE NOTICE 'Schema 1 has more rows (% rows) than Schema 2 (% rows).', schema1_count, schema2_count;
+        -- Add your actions here
+    ELSIF schema1_count < schema2_count THEN
+        -- Do something when schema2 has more rows
+        RAISE NOTICE 'Schema 2 has more rows (% rows) than Schema 1 (% rows).', schema2_count, schema1_count;
+        -- Add your actions here
+    ELSE
+        -- Do something when both schemas have the same number of rows
+        RAISE NOTICE 'Schema 1 and Schema 2 have the same number of rows (% rows each).', schema1_count;
+        -- Add your actions here
+    END IF;
+END $$;
