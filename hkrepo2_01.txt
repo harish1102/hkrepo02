@@ -1,38 +1,48 @@
-from aws_cdk import core
-from aws_cdk import aws_cloudwatch
-from aws_cdk import aws_ec2
-from aws_cdk import aws_autoscaling
+from aws_cdk import (
+    aws_rds as rds,
+    aws_cloudwatch as cloudwatch,
+    core
+)
 
-
-class MyCdkStack(core.Stack):
+class MyCdkAppStack(core.Stack):
 
     def __init__(self, scope: core.Construct, id: str, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
-        # Create an EC2 instance
-        ec2_instance = aws_ec2.Instance(self, "MyInstance",
-            instance_type=aws_ec2.InstanceType.of(aws_ec2.InstanceClass.BURSTABLE2, aws_ec2.InstanceSize.MICRO),
-            machine_image=aws_ec2.MachineImage.latest_amazon_linux(),
-            vpc=aws_ec2.Vpc(self, "MyVpc", max_azs=2),
+        # Create an RDS Aurora PostgreSQL instance
+        database = rds.DatabaseInstance(
+            self, "MyDatabase",
+            engine=rds.DatabaseInstanceEngine.aurora_postgres(version=rds.AuroraPostgresEngineVersion.VER_10_11),
+            instance_class=core.Fn.select(0, core.Fn.split("-", core.Fn.ref("AWS::CDK::StackName"))),
+            master_username="admin",
+            master_user_password=core.SecretValue.plain_text("YourPassword"),
         )
 
-        # Create a custom metric for CPU utilization
-        cpu_metric = aws_cloudwatch.Metric.custom(
-            namespace="EC2",
+        # Create a CloudWatch metric for the RDS instance's CPU utilization
+        cpu_metric = cloudwatch.Metric(
             metric_name="CPUUtilization",
+            namespace="AWS/RDS",
             dimensions={
-                "InstanceId": ec2_instance.instance_id
+                "DBInstanceIdentifier": database.instance_identifier,
             },
-            statistic="Average"
+            statistic="Average",
         )
 
-        # Create a CloudWatch Alarm for CPU utilization
-        cpu_alarm = aws_cloudwatch.Alarm(self, "CPUMetricAlarm",
-            alarm_name="CPUMetricAlarm",
+        # Create a CloudWatch alarm for the CPU utilization metric
+        alarm = cloudwatch.Alarm(
+            self, "CPUMetricAlarm",
             metric=cpu_metric,
+            threshold=90,  # Set the desired threshold
             evaluation_periods=1,
-            threshold=90,  # Adjust the threshold as needed
-            comparison_operator=aws_cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
-            period=core.Duration.minutes(5),
-            treat_missing_data=aws_cloudwatch.TreatMissingData.NOT_BREACHING
+            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+            alarm_description="CPU Utilization Alarm",
+            alarm_name="CPUMetricAlarm",
+            actions_enabled=True,
+        )
+
+        # Send a notification when the alarm state changes to ALARM
+        alarm.add_alarm_action(
+            cloudwatch_actions.SnsAction(
+                topic=my_topic  # Replace with your SNS topic
+            )
         )
