@@ -1,31 +1,38 @@
--- Create a PL/pgSQL block
-DO $$ 
-BEGIN
-    -- Declare variables to store the row counts
-    DECLARE
-        schema1_count INT;
-        schema2_count INT;
+from aws_cdk import core
+from aws_cdk import aws_cloudwatch
+from aws_cdk import aws_ec2
+from aws_cdk import aws_autoscaling
 
-    -- Get the row count for the first schema
-    SELECT COUNT(*) INTO schema1_count
-    FROM schema1.your_table;
 
-    -- Get the row count for the second schema
-    SELECT COUNT(*) INTO schema2_count
-    FROM schema2.your_table;
+class MyCdkStack(core.Stack):
 
-    -- Check the condition and perform actions accordingly
-    IF schema1_count > schema2_count THEN
-        -- Do something when schema1 has more rows
-        RAISE NOTICE 'Schema 1 has more rows (% rows) than Schema 2 (% rows).', schema1_count, schema2_count;
-        -- Add your actions here
-    ELSIF schema1_count < schema2_count THEN
-        -- Do something when schema2 has more rows
-        RAISE NOTICE 'Schema 2 has more rows (% rows) than Schema 1 (% rows).', schema2_count, schema1_count;
-        -- Add your actions here
-    ELSE
-        -- Do something when both schemas have the same number of rows
-        RAISE NOTICE 'Schema 1 and Schema 2 have the same number of rows (% rows each).', schema1_count;
-        -- Add your actions here
-    END IF;
-END $$;
+    def __init__(self, scope: core.Construct, id: str, **kwargs) -> None:
+        super().__init__(scope, id, **kwargs)
+
+        # Create an EC2 instance
+        ec2_instance = aws_ec2.Instance(self, "MyInstance",
+            instance_type=aws_ec2.InstanceType.of(aws_ec2.InstanceClass.BURSTABLE2, aws_ec2.InstanceSize.MICRO),
+            machine_image=aws_ec2.MachineImage.latest_amazon_linux(),
+            vpc=aws_ec2.Vpc(self, "MyVpc", max_azs=2),
+        )
+
+        # Create a custom metric for CPU utilization
+        cpu_metric = aws_cloudwatch.Metric.custom(
+            namespace="EC2",
+            metric_name="CPUUtilization",
+            dimensions={
+                "InstanceId": ec2_instance.instance_id
+            },
+            statistic="Average"
+        )
+
+        # Create a CloudWatch Alarm for CPU utilization
+        cpu_alarm = aws_cloudwatch.Alarm(self, "CPUMetricAlarm",
+            alarm_name="CPUMetricAlarm",
+            metric=cpu_metric,
+            evaluation_periods=1,
+            threshold=90,  # Adjust the threshold as needed
+            comparison_operator=aws_cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+            period=core.Duration.minutes(5),
+            treat_missing_data=aws_cloudwatch.TreatMissingData.NOT_BREACHING
+        )
