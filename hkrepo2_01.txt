@@ -1,3 +1,237 @@
+https://youtu.be/K6mLO6276fc
+----
+import boto3
+from aws_cdk import core
+from aws_cdk import aws_rds as rds
+
+class GlobalRDSStack(core.Stack):
+
+    def __init__(self, scope: core.Construct, id: str, **kwargs) -> None:
+        super().__init__(scope, id, **kwargs)
+
+        # Define the RDS instance properties
+        rds_instance_id = 'my-rds-instance'  # Replace with your desired instance ID
+        db_name = 'mydatabase'
+        username = 'admin'
+        password = 'your-password'
+        instance_class = 'db.t2.micro'
+        allocated_storage = 20  # Adjust as needed
+        retention_period = 7  # Adjust as needed
+
+        # Check if the RDS instance already exists
+        rds_client = boto3.client('rds')
+        try:
+            rds_client.describe_db_instances(DBInstanceIdentifier=rds_instance_id)
+            rds_exists = True
+        except rds_client.exceptions.DBInstanceNotFoundFault:
+            rds_exists = False
+
+        # Create the RDS instance only if it doesn't exist
+        if not rds_exists:
+            rds_instance = rds.DatabaseInstance(
+                self, 'RDSInstance',
+                engine=rds.DatabaseInstanceEngine.postgres(version=rds.PostgresEngineVersion.VER_13_3),
+                instance_identifier=rds_instance_id,
+                master_username=username,
+                master_user_password=core.SecretValue.plain_text(password),
+                database_name=db_name,
+                instance_type=rds.InstanceType.of(rds.InstanceClass.of(rds.InstanceSizeValue.of(instance_class))),
+                allocated_storage=allocated_storage,
+                retention_period=core.Duration.days(retention_period),
+                vpc=your_vpc,  # Specify your VPC
+            )
+
+app = core.App()
+GlobalRDSStack(app, "GlobalRDSStack")
+app.synth()
+
+----
+import boto3
+
+def does_rds_instance_exist(region, db_instance_identifier):
+    client = boto3.client('rds', region_name=region)
+    try:
+        response = client.describe_db_instances(DBInstanceIdentifier=db_instance_identifier)
+        return len(response['DBInstances']) > 0
+    except client.exceptions.DBInstanceNotFoundFault:
+        return False
+
+# In your AWS CDK stack:
+if not does_rds_instance_exist('secondary_region', 'secondary_db_instance_id'):
+    # Define and create the secondary RDS instance using CDK constructs
+
+----
+from aws_cdk import core
+from aws_cdk.aws_rds import CfnDBInstance
+from aws_cdk.aws_cloudwatch import Alarm, Metric
+from aws_cdk.aws_sns import Topic
+from aws_cdk.aws_sns_subscriptions import EmailSubscription
+from aws_cdk.aws_iam import PolicyStatement
+
+class RDSAuroraStack(core.Stack):
+
+    def __init__(self, scope: core.Construct, id: str, **kwargs) -> None:
+        super().__init__(scope, id, **kwargs)
+
+        # Create an RDS Aurora PostgreSQL instance
+        rds_instance = CfnDBInstance(self, 'RDSInstance', 
+            allocated_storage=20,
+            db_instance_identifier='my-aurora-db',
+            engine='aurora-postgresql',
+            master_username='admin',
+            master_user_password='your-password',
+            vpc_security_groups=['security-group-id'],
+            db_subnet_group_name='your-subnet-group',
+            availability_zone='us-east-1a'
+        )
+
+        # Create CloudWatch Alarms for CPU utilization, memory utilization, and database connections
+        rds_cpu_alarm = Alarm(self, 'CPUAlarm',
+            metric=Metric.namespace('AWS/RDS').metric_name('CPUUtilization').dimensions(instance_identifier=rds_instance.ref),
+            threshold=90,
+            evaluation_periods=1,
+            alarm_description='High CPU Utilization',
+            alarm_name='HighCPUUtilization'
+        )
+        rds_memory_alarm = Alarm(self, 'MemoryAlarm',
+            metric=Metric.namespace('AWS/RDS').metric_name('FreeableMemory').dimensions(instance_identifier=rds_instance.ref),
+            threshold=10000000,  # Adjust this threshold as needed
+            evaluation_periods=1,
+            alarm_description='Low Freeable Memory',
+            alarm_name='LowFreeableMemory'
+        )
+        rds_connections_alarm = Alarm(self, 'ConnectionsAlarm',
+            metric=Metric.namespace('AWS/RDS').metric_name('DatabaseConnections').dimensions(instance_identifier=rds_instance.ref),
+            threshold=100,  # Adjust this threshold as needed
+            evaluation_periods=1,
+            alarm_description='High Database Connections',
+            alarm_name='HighDatabaseConnections'
+        )
+
+        # Create SNS Topics and subscriptions
+        sns_topic = Topic(self, 'SNSTopic')
+        email_subscription = EmailSubscription('your-email@example.com')
+        sns_topic.add_subscription(email_subscription)
+
+        # Add an IAM policy to allow CloudWatch Alarms to publish to SNS topic
+        sns_topic.add_to_resource_policy(PolicyStatement(
+            actions=["SNS:Publish"],
+            resources=[sns_topic.topic_arn],
+            effect=aws_iam.Effect.ALLOW,
+            conditions={"StringEquals": {"aws:SourceAccount": core.Aws.ACCOUNT_ID}}
+        ))
+
+---
+from aws_cdk import core
+from aws_cdk.aws_rds import AuroraMysqlEngineVersion, DatabaseCluster, ParameterGroup
+from aws_cdk.aws_sns import Subscription, Topic
+from aws_cdk.aws_sns_subscriptions import EmailSubscription
+from aws_cdk.aws_cloudwatch import Metric
+
+class RDSAuroraStack(core.Stack):
+    def __init__(self, scope: core.Construct, id: str, **kwargs) -> None:
+        super().__init__(scope, id, **kwargs)
+
+        # Create the RDS Aurora PostgreSQL instance
+        db_cluster = DatabaseCluster(
+            self, 'AuroraDBCluster',
+            default_database_name='mydb',
+            engine=AuroraMysqlEngineVersion.VER_2_07_2,
+            master_user= {
+                'username': 'admin',
+                'password': 'mysecretpassword'
+            },
+            instance_props= {
+                'vpc': your_vpc,
+            }
+        )
+
+        # Create a CloudWatch metric for CPU utilization
+        cpu_metric = Metric(
+            metric_name='CPUUtilization',
+            namespace='AWS/RDS',
+            dimensions={
+                'DBClusterIdentifier': db_cluster.cluster_identifier
+            },
+            statistic='Average',
+            period=core.Duration.minutes(5)
+        )
+
+        # Create a CloudWatch Alarm for CPU utilization
+        alarm = cpu_metric.create_alarm(
+            self, 'CPUMetricAlarm',
+            threshold=90,
+            evaluation_periods=1,
+            alarm_name='HighCPUUtilization',
+            alarm_description='CPU Utilization is high',
+            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD
+        )
+
+        # Create an SNS topic
+        sns_topic = Topic(
+            self, 'SNSTopic',
+            display_name='High CPU Alert'
+        )
+
+        # Subscribe to the SNS topic via email
+        Subscription(
+            self, 'EmailSubscription',
+            topic=sns_topic,
+            protocol=EmailSubscription('youremail@example.com')
+        )
+
+app = core.App()
+RDSAuroraStack(app, "RDSAuroraStack")
+app.synth()
+
+---
+from aws_cdk import core
+from aws_cdk.aws_rds import DatabaseCluster, DatabaseClusterEngine
+from aws_cdk.aws_cloudwatch import Alarm, Metric, ComparisonOperator
+from aws_cdk.aws_sns import Topic
+
+class RDSAuroraStack(core.Stack):
+
+    def __init__(self, scope: core.Construct, id: str, **kwargs) -> None:
+        super().__init__(scope, id, **kwargs)
+
+        # Create an RDS Aurora database
+        rds_cluster = DatabaseCluster(
+            self, "MyAuroraDB",
+            engine=DatabaseClusterEngine.AURORA_POSTGRESQL,
+            instance_props={
+                "instance_type": "db.r5.large",
+                "vpc_subnets": {"subnet_type": core.ec2.SubnetType.PRIVATE}
+            },
+        )
+
+        # Create a CloudWatch metric for CPU utilization
+        cpu_utilization_metric = Metric(
+            namespace="AWS/RDS",
+            metric_name="CPUUtilization",
+            dimensions={"DBClusterIdentifier": rds_cluster.cluster_identifier},
+            statistic="Average",
+        )
+
+        # Create a CloudWatch alarm for CPU utilization
+        cpu_alarm = Alarm(
+            self, "CPUMetricAlarm",
+            metric=cpu_utilization_metric,
+            threshold=90,  # Adjust threshold as needed
+            evaluation_periods=1,
+            comparison_operator=ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        )
+
+        # Create an SNS topic for email notifications
+        sns_topic = Topic(
+            self, "SnsTopic",
+            display_name="RDS Aurora CPU Alarm",
+        )
+
+        # Subscribe to the SNS topic with an email address
+        sns_topic.add_subscription(subscription=lambda_)
+
+----
 from aws_cdk import (
     aws_rds as rds,
     aws_cloudwatch as cloudwatch,
