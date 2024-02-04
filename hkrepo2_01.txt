@@ -1,3 +1,45 @@
+🏡 Spacious 3-Bedroom, 2-Bath Ranch Home For Rent 🏡
+
+Welcome to your ideal family home! This clean and roomy ranch-style house offers the perfect blend of comfort and convenience. 
+
+🌟 Key Features 🌟
+✅ 3 Bedrooms, 2 Bathrooms
+✅ Fresh New Paint Throughout
+✅ Fully-Equipped Kitchen with Fridge Included
+✅ Washer and Dryer In-Unit
+✅ Extended Patio for Outdoor Relaxation
+✅ Smart Home Devices: Control Thermostat, Garage, and Lights Remotely
+✅ Prime Location Near US 52
+✅ Close Proximity to Food Lion Grocery Store
+
+🏠 Home Details 🏠
+- Address: [Insert Address]
+- Rent: $[Insert Monthly Rent]
+- Security Deposit: $[Insert Security Deposit]
+- Lease Duration: 1 Year Minimum
+- Available: [Insert Availability Date]
+- Utilities: Tenant Responsibility (Water, Gas, Electricity, Trash)
+
+📌 Location 📌
+This home's location offers the best of both worlds:
+- Easy access to major roadways, including US 52
+- A short drive to Food Lion for all your grocery needs
+- Nearby parks and green spaces for outdoor activities
+
+📞 Contact Information 📞
+For inquiries and to schedule a viewing, please contact:
+[Your Name]
+Phone: [Your Phone Number]
+Email: [Your Email Address]
+
+📸 Photo Gallery 📸
+[Insert High-Quality Photos of the Home]
+
+Don't miss out on the opportunity to make this well-maintained house your new home. Schedule a viewing today! We're excited to show you all that this wonderful property has to offer.
+
+[Note: Customize the details, including rent, availability date, and contact information to match your specific rental property. Include high-quality photos to showcase the home's interior and exterior. Make sure to comply with local rental laws and regulations when creating a rental listing.]
+
+---
 import boto3
 
 # Replace these with your AWS credentials or use a configured AWS profile.
